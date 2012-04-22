@@ -342,7 +342,7 @@ class matrix:
 
     def __repr__(self):
         import pprint
-        return pprint.pformat(self.value)
+        return pprint.pformat(self.value,indent=1,width=300)
 
 
 # ######################################################################
@@ -504,8 +504,70 @@ def make_data(N, num_landmarks, world_size, measurement_range, motion_noise,
 # full_slam - retains entire path and all landmarks
 #             Feel free to use this for comparison.
 #
-
 def slam(data, N, num_landmarks, motion_noise, measurement_noise):
+
+    # Set the dimension of the filter
+    dim = 2 * (N + num_landmarks) 
+
+    # make the constraint information matrix and vector
+    Omega = matrix()
+    Omega.zero(dim, dim)
+    Omega.value[0][0] = 1.0
+    Omega.value[1][1] = 1.0
+
+    Xi = matrix()
+    Xi.zero(dim, 1)
+    Xi.value[0][0] = world_size / 2.0
+    Xi.value[1][0] = world_size / 2.0
+    
+    # process the data
+
+    for k in range(len(data)):
+
+        # n is the index of the robot pose in the matrix/vector
+        n = k * 2 
+    
+        measurement = data[k][0]
+        motion      = data[k][1]
+    
+        # integrate the measurements
+        for i in range(len(measurement)):
+    
+            # m is the index of the landmark coordinate in the matrix/vector
+            m = 2 * (N + measurement[i][0])
+    
+            # update the information maxtrix/vector based on the measurement
+            for b in range(2):
+                Omega.value[n+b][n+b] +=  1.0 / measurement_noise
+                Omega.value[m+b][m+b] +=  1.0 / measurement_noise
+                Omega.value[n+b][m+b] += -1.0 / measurement_noise
+                Omega.value[m+b][n+b] += -1.0 / measurement_noise
+                Xi.value[n+b][0]      += -measurement[i][1+b] / measurement_noise
+                Xi.value[m+b][0]      +=  measurement[i][1+b] / measurement_noise
+
+
+        # update the information maxtrix/vector based on the robot motion
+        for b in range(4):
+            Omega.value[n+b][n+b] +=  1.0 / motion_noise
+        for b in range(2):
+            Omega.value[n+b  ][n+b+2] += -1.0 / motion_noise
+            Omega.value[n+b+2][n+b  ] += -1.0 / motion_noise
+            Xi.value[n+b  ][0]        += -motion[b] / motion_noise
+            Xi.value[n+b+2][0]        +=  motion[b] / motion_noise
+
+    #print Omega
+    #A = Omega.take(range(N*2),range(N*2))
+    #B = Omega.take(range(N*2),range(N*2,dim))
+    #C = Omega.take(range(N*2,dim),range(N*2,dim))
+    #print 'A:\n',A
+    #print 'B:\n',B
+    #print 'C:\n',C
+    # compute best estimate
+    mu = Omega.inverse() * Xi
+    # return the result
+    return mu
+
+def slam2(data, N, num_landmarks, motion_noise, measurement_noise):
     world_dim = 2 # how many dimensions of freedom the robot has (2 = x,y motion or x motion and theta orientation)
 
     # Set the dimension of the filter
@@ -524,7 +586,7 @@ def slam(data, N, num_landmarks, motion_noise, measurement_noise):
 
     # process the data
     for k in range(len(data)):
-        print k
+        #print k
         # n is the index of the robot pose in the matrix/vector
         n = k * world_dim 
 
@@ -555,7 +617,7 @@ def slam(data, N, num_landmarks, motion_noise, measurement_noise):
             Omega.value[n+b+world_dim][n+b          ] += -1.0 / motion_noise
             Xi.value[n+b          ][0]        += -motion[b] / motion_noise
             Xi.value[n+b+world_dim][0]        +=  motion[b] / motion_noise
-
+    print Omega
     # compute best estimate
     mu = Omega.inverse() * Xi
 
@@ -581,38 +643,36 @@ def online_slam(data, N, num_landmarks, motion_noise, measurement_noise): # N no
     Xi.zero(dim, 1)
     
     for i in range(world_dim):
-        Omega.value[i][i] = 1.0 # what about the -1 in the off diagonal?
+        Omega.value[i][i] = 1.0 
         Xi.value[i][0] = world_size / 2.0 
 
-    shuffler   = range(world_dim)+[x+2*world_dim for x in range(dim-world_dim)]
+    shuffler   = range(world_dim)+range(2*world_dim,dim+world_dim) #[x+2*world_dim for x in range(dim-world_dim)]
     unshuffler = range(world_dim,dim+world_dim)
     
     # process the data
     for k in range(len(data)):
-        print k
-        # insert row(s) for new location at 2nd position in matrix & vector
-        Omega = Omega.expand(dim+world_dim, dim+world_dim, shuffler, shuffler        )
-        for i in range(world_dim):
-            Omega.value[i+world_dim][i+world_dim] = 1.0 # what about the -1 in the off diagonal?
-        Xi    =    Xi.expand(dim+world_dim, world_dim,     shuffler, [0])
+        #print k
+        #for i in range(world_dim):
+        #    Omega.value[i+world_dim][i+world_dim] = 1.0 # what about the -1 in the off diagonal?
         
 #        print 'expanded omega and Xi'
 #        print Omega
 #        print Xi
         
+        # I got this wrong on the homework
+        #n = 1 * world_dim # we'll always be adding one set of rows/columns and that's where the new stuff goes
         # n is the index of the robot pose in the matrix/vector
-        n = 1 * world_dim # we'll always be adding one set of rows/columns and that's where the new stuff goes
-
+        n = 0
         measurement = data[k][0]
         motion      = data[k][1]
     
         # integrate the measurements
-        print 'measurements:'
+        #print 'measurements:'
         for i in range(len(measurement)):
     
             # m is the index of the landmark coordinate in the matrix/vector
-            print measurement[i]
-            m = world_dim * (2 + measurement[i][0])
+            #print measurement[i]
+            m = world_dim * (1 + measurement[i][0])
     
             # update the information maxtrix/vector based on the measurement
             for b in range(world_dim):
@@ -623,7 +683,10 @@ def online_slam(data, N, num_landmarks, motion_noise, measurement_noise): # N no
                 Xi.value[n+b][0]      += -measurement[i][1+b] / measurement_noise
                 Xi.value[m+b][0]      +=  measurement[i][1+b] / measurement_noise
 
+        Omega = Omega.expand(dim+world_dim,dim+world_dim,shuffler,shuffler)
+        Xi    =    Xi.expand(dim+world_dim, world_dim-1, shuffler, [0])
 
+        
         # update the information maxtrix/vector based on the robot motion
         for b in range(2*world_dim): # or should this be world_dim**2 ??
             Omega.value[n+b][n+b] +=  1.0 / motion_noise
@@ -632,19 +695,14 @@ def online_slam(data, N, num_landmarks, motion_noise, measurement_noise): # N no
             Omega.value[n+b+world_dim][n+b          ] += -1.0 / motion_noise
             Xi.value[n+b          ][0]        += -motion[b] / motion_noise
             Xi.value[n+b+world_dim][0]        +=  motion[b] / motion_noise
-        
-#        print 'populated omega and Xi'
-#        print Omega
-#        print Xi
-        
-        Omega_prime = Omega.take(unshuffler, unshuffler)
+
+        Omega_prime = Omega.take(unshuffler) #, unshuffler)
         Xi_prime    =    Xi.take(unshuffler, [0])
         A     = Omega.take(range(world_dim),unshuffler)
         B     = Omega.take(range(world_dim),range(world_dim))
         C     = Xi.take(range(world_dim),[0])
         Binv  = B.inverse()
         Atrans = A.transpose()
-        Binv   = B.inverse()
 
         Omega = Omega_prime - Atrans*Binv*A
         Xi    = Xi_prime    - Atrans*Binv*C
@@ -678,24 +736,28 @@ def print_result(N, num_landmarks, result):
 
 num_landmarks      = 5        # number of landmarks
 N                  = 20       # time steps
-world_size         = 300.0    # size of world
+world_size         = 100.0    # size of world
 measurement_range  = 50.0     # range at which we can sense landmarks
-motion_noise       = 2.0      # noise in robot motion
-measurement_noise  = 2.0      # noise in the measurements
-distance           = 20.0     # distance by which robot (intends to) move each iteratation 
+motion_noise       = 5.0      # noise in robot motion
+measurement_noise  = 5.0      # noise in the measurements
+distance           = 3.0     # distance by which robot (intends to) move each iteratation 
 
 
 # Uncomment the following three lines to run the full slam routine.
 
 data = make_data(N, num_landmarks, world_size, measurement_range, motion_noise, measurement_noise, distance)
 result = slam(data, N, num_landmarks, motion_noise, measurement_noise)
+#result2 = slam2(data, N, num_landmarks, motion_noise, measurement_noise)
 print_result(N, num_landmarks, result)
+#print_result(N, num_landmarks, result2)
+#print result-result2
 
 # Uncomment the following three lines to run the online_slam routine.
 
 #data = make_data(N, num_landmarks, world_size, measurement_range, motion_noise, measurement_noise, distance)
-result = online_slam(data, N, num_landmarks, motion_noise, measurement_noise)
-print_result(1, num_landmarks, result[0])
+result3 = online_slam(data, N, num_landmarks, motion_noise, measurement_noise)
+print_result(1, num_landmarks, result3[0])
+
 
 ##########################################################
 

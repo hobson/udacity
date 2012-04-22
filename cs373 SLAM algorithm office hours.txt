@@ -1,0 +1,2 @@
+Ransack is the technique used to randomly assign landmarks to measurements and searching for the best set of solutions for nearby landmarks
+for mine mapping your correlate sections of the map with measurements (like photo-stitching) and then plug those positions into the slam algorithm
