@@ -1,15 +1,14 @@
 Objective
 ---------
 
-Over time I'd like to convert many of the [Udacity Parallel Programming class](https://www.udacity.com/course/cs344) exercises and examples from Nvidias Cuda library implementation to opencl. Even better than that, I may try out pyopencl, if the performance penalty isn't to big for using python to orchestrate the process.
-
+Over time I'd like to convert many of the [Udacity Parallel Programming class](https://www.udacity.com/course/cs344) exercises and examples from Nvidia's Cuda library implementation to opencl. Even better than that, I may try out pyopencl, if the performance penalty isn't to big for using python to orchestrate the process.
 
 pyopencl_example.py
 -------------------
 
 While taking the Udacity parallel computing class I decided to compare performance between CPU (serial) and GPU (parallel) implementation. So I ran a simple kernel, `a * a + b * b`, for an array of 32-bit random floats between 0 and 1 using pyopencl and numpy. I wanted to see if it was worthwhile to take my GPU BTC mining rig offline periodically to do scientific computing. But even my a bottom-of-the-barrel 64-bit AMD Sempron 145 (2.8 GHz, 5600 bogo-MIPS) processor with 8GB DRAM can beat a Radeon 7750 GPU for all but the largest arrays. And the best-possible throughput gain on the GPU is about 4x.
 
-So numpy must be well-optimized. I tried optimizing my GPU kernel by minimizing array index lookups, etc, but nothing I came up with made a significant difference for this simple kernel. Both the CPU and GPU gave exactly the same answer, so that's nice.
+So numpy must be well-optimized and the pyopencl_example must be pretty poorly optimized. I tried optimizing my GPU kernel by minimizing array index lookups, etc, but nothing I came up with made a significant difference for this simple kernel. Both the CPU and GPU gave exactly the same answer, so that's nice.
 
 Here's the output with crude measurements of execution time. The "Difference between the 2 answers" is any discrepancy in the mathematical operations performed on the GPU relative to the CPU. Surprisingly I never saw even the slightest rounding error difference. Either the CPU and GPU use the exact same machine code to perform the multiplications and additions or my comparision is not precise enough itself to catch small errors.
 
