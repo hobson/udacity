@@ -1,5 +1,5 @@
 class HashTable:
-    """What type of keying and hasing is this called?"""
+    """What type of key chaining and hashing is this called?"""
     def __init__(self):
         self.salt = 123456789
         self.num_bins = 1e3
