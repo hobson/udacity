@@ -7,7 +7,7 @@ import os   # fork
 
 
 def main(argv):
-    print("%% ")
+    sys.stdout.write("%% ")
     buf = sys.stdin.readline()
     while (buf and buf is not '\n'):
         pid = 0
@@ -17,18 +17,22 @@ def main(argv):
             print('fork error')
         if pid == 0:  # child
             bufs = buf.split(' ')
-            try:
-                retval = os.execlp(*bufs)
-                print retval
+            if len(bufs) < 2:
+                bufs += ['']
+            retval = os.execlp(*bufs)
+            if retval >= 0:
                 return 127
-            except:
-                sys.stderr.write("couldn't execute: %s" % buf)
-                return 0
+            sys.stderr.write("couldn't execute: %s" % buf)
+            return 0
         elif pid:
-            status = os.waitpid(pid)
-            if status < 0:
+            try:
+                status = os.waitpid(pid, 0)
+            except OSError as e:
+                sys.stderr.write("I/O error({0}): {1}".format(e.errno, e.strerror))
+                status = (pid, -1)
+            if status and len(status) == 2 and status[1] < 0:
                 sys.stderr.write("waitpid error")
-        print("%% ")
+        sys.stdout.write("%% ")
         buf = sys.stdin.readline()
     return 0
 
